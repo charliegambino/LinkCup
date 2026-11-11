@@ -261,4 +261,50 @@
         url, 
         lat, 
         lng, 
-        votes
+        votes: 1, 
+        user_id: currentUser ? currentUser.id : null 
+      }]);
+
+      if (error) {
+        alert('Error posting link: ' + error.message);
+      } else {
+        if (!currentUser) {
+          localStorage.setItem('guest_posted', 'true');
+          alert('Guest post successful! Sign in anytime to unlock up to 10 posts.');
+        } else {
+          alert('Successfully pinned to the globe!');
+        }
+        e.target.reset();
+        loadGlobeLinks();
+      }
+    });
+
+    function openPreview(item) {
+      document.getElementById('modalTitle').innerText = item.title;
+      document.getElementById('modalLink').href = item.url;
+      
+      const content = document.getElementById('modalContent');
+      content.innerHTML = '';
+
+      if (item.url.includes('youtube.com') || item.url.includes('youtu.be')) {
+        let videoId = item.url.includes('youtu.be') ? item.url.split('/').pop() : new URL(item.url).searchParams.get('v');
+        content.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>`;
+      } else if (item.url.includes('spotify.com')) {
+        let embedUrl = item.url.replace('open.spotify.com', 'open.spotify.com/embed');
+        content.innerHTML = `<iframe src="${embedUrl}" height="152" allow="encrypted-media"></iframe>`;
+      } else {
+        content.innerHTML = `<p style="color:#94a3b8;">Direct preview not available for this website. Click below to view!</p>`;
+      }
+
+      document.getElementById('modal').style.display = 'block';
+    }
+
+    function closeModal() {
+      document.getElementById('modal').style.display = 'none';
+      document.getElementById('modalContent').innerHTML = '';
+    }
+
+    init();
+  </script>
+</body>
+</html>
