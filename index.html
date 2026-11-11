@@ -9,7 +9,7 @@
   <script src="//unpkg.com/three"></script>
   <script src="//unpkg.com/globe.gl"></script>
   <style>
-    body { margin: 0; background: #020408; color: #fff; font-family: system-ui, sans-serif; overflow: hidden; }
+    body { margin: 0; background: #010204; color: #fff; font-family: system-ui, sans-serif; overflow: hidden; }
     #globeViz { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
     
     /* Black, Blue & Green UI Overlay */
@@ -23,8 +23,8 @@
       backdrop-filter: blur(12px);
       padding: 20px;
       border-radius: 14px;
-      border: 1px solid #10b981;
-      box-shadow: 0 0 25px rgba(16, 185, 129, 0.2), 0 0 12px rgba(56, 189, 248, 0.15);
+      border: 1px solid #38bdf8;
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.25), 0 0 12px rgba(16, 185, 129, 0.15);
     }
     h1 {
       margin: 0 0 4px 0;
@@ -47,7 +47,7 @@
       outline: none;
       transition: border-color 0.2s;
     }
-    input:focus { border-color: #10b981; }
+    input:focus { border-color: #38bdf8; }
     button {
       padding: 10px;
       border-radius: 8px;
@@ -63,11 +63,11 @@
 
     /* Auth status bar */
     .auth-bar { margin-top: 14px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; color: #38bdf8; }
-    .auth-bar button { padding: 5px 10px; font-size: 11px; background: #0f172a; border: 1px solid #10b981; color: #10b981; }
-    .auth-bar button:hover { background: #10b981; color: #000; }
+    .auth-bar button { padding: 5px 10px; font-size: 11px; background: #0f172a; border: 1px solid #38bdf8; color: #38bdf8; }
+    .auth-bar button:hover { background: #38bdf8; color: #000; }
 
     /* Floating Modal for Media Previews */
-    #modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 600px; background: #050a0f; border: 1px solid #10b981; border-radius: 14px; z-index: 100; padding: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9); }
+    #modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 600px; background: #050a0f; border: 1px solid #38bdf8; border-radius: 14px; z-index: 100; padding: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9); }
     #modal iframe { width: 100%; height: 315px; border-radius: 8px; border: none; margin-top: 12px; }
     .close-btn { float: right; background: transparent; color: #94a3b8; font-size: 18px; cursor: pointer; border: none; padding: 0; }
   </style>
@@ -107,6 +107,7 @@
 
     let globe;
     let currentUser = null;
+    let cloudsMesh = null;
 
     async function init() {
       const { data: { session } } = await db.auth.getSession();
@@ -151,24 +152,24 @@
       }
     }
 
-    function addColorfulGalaxy(scene) {
-      const starCount = 3500;
+    function addCosmicGalaxyAndSun(scene) {
+      // 1. Colorful Galaxy & Nebula Starfield
+      const starCount = 5000;
       const geometry = new THREE.BufferGeometry();
       const positions = new Float32Array(starCount * 3);
       const colors = new Float32Array(starCount * 3);
 
       const palette = [
-        new THREE.Color('#38bdf8'), // Cyan blue
-        new THREE.Color('#10b981'), // Emerald green
-        new THREE.Color('#a855f7'), // Galaxy purple
-        new THREE.Color('#f472b6'), // Nebula pink
-        new THREE.Color('#fde047'), // Starlight gold
-        new THREE.Color('#ffffff')  // Pure white
+        new THREE.Color('#38bdf8'), // Bright Cyan Blue
+        new THREE.Color('#f472b6'), // Nebula Pink
+        new THREE.Color('#a855f7'), // Galaxy Purple
+        new THREE.Color('#fde047'), // Starlight Gold
+        new THREE.Color('#10b981'), // Emerald Green
+        new THREE.Color('#ffffff')  // Pure White
       ];
 
       for (let i = 0; i < starCount; i++) {
-        // Spread stars in a wide 3D sphere around the globe
-        const r = 400 + Math.random() * 1200;
+        const r = 500 + Math.random() * 1500;
         const theta = 2 * Math.PI * Math.random();
         const phi = Math.acos(2 * Math.random() - 1);
 
@@ -186,125 +187,47 @@
       geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
       const material = new THREE.PointsMaterial({
-        size: 3.2,
+        size: 3.5,
         vertexColors: true,
         transparent: true,
-        opacity: 0.9
+        opacity: 0.95
       });
 
       const stars = new THREE.Points(geometry, material);
       scene.add(stars);
+
+      // 2. Distant Glowing Sun / Light Source
+      const sunLight = new THREE.DirectionalLight(0xfff5e6, 2.2);
+      sunLight.position.set(400, 200, 400);
+      scene.add(sunLight);
+
+      const ambientLight = new THREE.AmbientLight(0x334155, 1.2);
+      scene.add(ambientLight);
     }
 
     async function setupGlobe() {
-      globe = Globe({ rendererConfig: { antialias: true, powerPreference: 'high-performance' } })
+      // High-performance renderer with crisp pixel ratio for zero blur/pixelation
+      const rendererConfig = { antialias: true, alpha: false, powerPreference: 'high-performance' };
+
+      globe = Globe({ rendererConfig })
         (document.getElementById('globeViz'))
-        .globeImageUrl('//unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
-        .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
-        .backgroundColor('#020408')
-        .atmosphereColor('#10b981')
-        .atmosphereAltitude(0.28)
+        .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+        .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+        .backgroundColor('#010204')
+        .atmosphereColor('#38bdf8')
+        .atmosphereAltitude(0.3)
         .htmlElementsData([])
         .htmlElement(d => {
           const el = document.createElement('div');
           const size = Math.max(10, d.votes * 2.2);
-          el.innerHTML = `<div style="cursor:pointer; background: radial-gradient(circle, #10b981, #38bdf8); width: ${size}px; height: ${size}px; border-radius: 50%; box-shadow: 0 0 14px #10b981, 0 0 24px #38bdf8; border: 2px solid #fff;"></div>`;
+          el.innerHTML = `<div style="cursor:pointer; background: radial-gradient(circle, #38bdf8, #10b981); width: ${size}px; height: ${size}px; border-radius: 50%; box-shadow: 0 0 16px #38bdf8, 0 0 26px #10b981; border: 2px solid #fff;"></div>`;
           el.onclick = () => openPreview(d);
           return el;
         });
 
-      // Sharper terrain & zoom limits
-      globe.globeMaterial().bumpScale = 12;
-      globe.controls().autoRotate = true;
-      globe.controls().autoRotateSpeed = 0.45;
-      globe.controls().minDistance = 130;
-      globe.controls().maxDistance = 600;
-
-      // Add 3D colorful galaxy stars
-      addColorfulGalaxy(globe.scene());
-    }
-
-    async function loadGlobeLinks() {
-      const { data, error } = await db.from('links').select('*');
-      if (error || !data) return;
-      globe.htmlElementsData(data);
-    }
-
-    document.getElementById('linkForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const title = document.getElementById('title').value;
-      const url = document.getElementById('url').value;
+      // Crystal-clear zoom settings & auto-rotation
+      globe.renderer().setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      globe.globeMaterial().bumpScale = 15;
+      globe.globeMaterial().shininess = 25;
       
-      if (currentUser) {
-        const { count } = await db
-          .from('links')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', currentUser.id);
-
-        if (count >= 10) {
-          alert('You have reached the limit of 10 posted links per account!');
-          return;
-        }
-      } else {
-        if (localStorage.getItem('guest_posted')) {
-          alert('Guests can make 1 free post! Please Sign In/Up in the top left to post more links and build your profile.');
-          return;
-        }
-      }
-
-      const lat = (Math.random() * 140) - 70;
-      const lng = (Math.random() * 360) - 180;
-
-      const { error } = await db.from('links').insert([{ 
-        title, 
-        url, 
-        lat, 
-        lng, 
-        votes: 1, 
-        user_id: currentUser ? currentUser.id : null 
-      }]);
-
-      if (error) {
-        alert('Error posting link: ' + error.message);
-      } else {
-        if (!currentUser) {
-          localStorage.setItem('guest_posted', 'true');
-          alert('Guest post successful! Sign in anytime to unlock up to 10 posts.');
-        } else {
-          alert('Successfully pinned to the globe!');
-        }
-        e.target.reset();
-        loadGlobeLinks();
-      }
-    });
-
-    function openPreview(item) {
-      document.getElementById('modalTitle').innerText = item.title;
-      document.getElementById('modalLink').href = item.url;
-      
-      const content = document.getElementById('modalContent');
-      content.innerHTML = '';
-
-      if (item.url.includes('youtube.com') || item.url.includes('youtu.be')) {
-        let videoId = item.url.includes('youtu.be') ? item.url.split('/').pop() : new URL(item.url).searchParams.get('v');
-        content.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>`;
-      } else if (item.url.includes('spotify.com')) {
-        let embedUrl = item.url.replace('open.spotify.com', 'open.spotify.com/embed');
-        content.innerHTML = `<iframe src="${embedUrl}" height="152" allow="encrypted-media"></iframe>`;
-      } else {
-        content.innerHTML = `<p style="color:#94a3b8;">Direct preview not available for this website. Click below to view!</p>`;
-      }
-
-      document.getElementById('modal').style.display = 'block';
-    }
-
-    function closeModal() {
-      document.getElementById('modal').style.display = 'none';
-      document.getElementById('modalContent').innerHTML = '';
-    }
-
-    init();
-  </script>
-</body>
-</html>
+      globe.controls().autoRotate =
