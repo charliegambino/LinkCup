@@ -9,25 +9,65 @@
   <script src="//unpkg.com/three"></script>
   <script src="//unpkg.com/globe.gl"></script>
   <style>
-    body { margin: 0; background: #000; color: #fff; font-family: system-ui, sans-serif; overflow: hidden; }
+    body { margin: 0; background: #020408; color: #fff; font-family: system-ui, sans-serif; overflow: hidden; }
     #globeViz { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
     
-    /* UI Overlay */
-    .ui-overlay { position: absolute; top: 20px; left: 20px; z-index: 10; max-width: 350px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); }
-    h1 { margin: 0 0 4px 0; font-size: 24px; color: #38bdf8; }
+    /* Black, Blue & Green UI Overlay */
+    .ui-overlay {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 10;
+      max-width: 340px;
+      background: rgba(4, 8, 12, 0.88);
+      backdrop-filter: blur(12px);
+      padding: 20px;
+      border-radius: 14px;
+      border: 1px solid #10b981;
+      box-shadow: 0 0 25px rgba(16, 185, 129, 0.2), 0 0 12px rgba(56, 189, 248, 0.15);
+    }
+    h1 {
+      margin: 0 0 4px 0;
+      font-size: 26px;
+      background: linear-gradient(90deg, #38bdf8, #10b981);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-weight: 800;
+    }
     .sub { color: #94a3b8; font-size: 13px; margin-bottom: 16px; }
     
-    form { display: flex; flex-direction: column; gap: 8px; }
-    input { padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: white; font-size: 14px; }
-    button { padding: 10px; border-radius: 6px; border: none; background: #3b82f6; color: white; font-weight: 600; cursor: pointer; }
-    button:hover { background: #2563eb; }
+    form { display: flex; flex-direction: column; gap: 10px; }
+    input {
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #1e3a5f;
+      background: #070d14;
+      color: #e2e8f0;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus { border-color: #10b981; }
+    button {
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(90deg, #0284c7, #10b981);
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    button:hover { opacity: 0.9; }
+    button:active { transform: scale(0.98); }
 
     /* Auth status bar */
-    .auth-bar { margin-top: 12px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; color: #94a3b8; }
-    .auth-bar button { padding: 4px 8px; font-size: 11px; background: #475569; }
+    .auth-bar { margin-top: 14px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; color: #38bdf8; }
+    .auth-bar button { padding: 5px 10px; font-size: 11px; background: #0f172a; border: 1px solid #10b981; color: #10b981; }
+    .auth-bar button:hover { background: #10b981; color: #000; }
 
     /* Floating Modal for Media Previews */
-    #modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 600px; background: #0f172a; border: 1px solid #334155; border-radius: 12px; z-index: 100; padding: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); }
+    #modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 600px; background: #050a0f; border: 1px solid #10b981; border-radius: 14px; z-index: 100; padding: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9); }
     #modal iframe { width: 100%; height: 315px; border-radius: 8px; border: none; margin-top: 12px; }
     .close-btn { float: right; background: transparent; color: #94a3b8; font-size: 18px; cursor: pointer; border: none; padding: 0; }
   </style>
@@ -55,9 +95,9 @@
   <!-- Preview Modal -->
   <div id="modal">
     <button class="close-btn" onclick="closeModal()">✕</button>
-    <h2 id="modalTitle" style="margin:0 0 8px 0; font-size:18px;"></h2>
+    <h2 id="modalTitle" style="margin:0 0 8px 0; font-size:18px; color:#38bdf8;"></h2>
     <div id="modalContent"></div>
-    <a id="modalLink" href="#" target="_blank" style="display:inline-block; margin-top:12px; color:#38bdf8; text-decoration:none;">Open Full Link ↗</a>
+    <a id="modalLink" href="#" target="_blank" style="display:inline-block; margin-top:12px; color:#10b981; text-decoration:none; font-weight:600;">Open Full Link ↗</a>
   </div>
 
   <script>
@@ -111,24 +151,77 @@
       }
     }
 
+    function addColorfulGalaxy(scene) {
+      const starCount = 3500;
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(starCount * 3);
+      const colors = new Float32Array(starCount * 3);
+
+      const palette = [
+        new THREE.Color('#38bdf8'), // Cyan blue
+        new THREE.Color('#10b981'), // Emerald green
+        new THREE.Color('#a855f7'), // Galaxy purple
+        new THREE.Color('#f472b6'), // Nebula pink
+        new THREE.Color('#fde047'), // Starlight gold
+        new THREE.Color('#ffffff')  // Pure white
+      ];
+
+      for (let i = 0; i < starCount; i++) {
+        // Spread stars in a wide 3D sphere around the globe
+        const r = 400 + Math.random() * 1200;
+        const theta = 2 * Math.PI * Math.random();
+        const phi = Math.acos(2 * Math.random() - 1);
+
+        positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+        positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+        positions[i * 3 + 2] = r * Math.cos(phi);
+
+        const color = palette[Math.floor(Math.random() * palette.length)];
+        colors[i * 3] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
+      }
+
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+      const material = new THREE.PointsMaterial({
+        size: 3.2,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.9
+      });
+
+      const stars = new THREE.Points(geometry, material);
+      scene.add(stars);
+    }
+
     async function setupGlobe() {
-      globe = Globe()
+      globe = Globe({ rendererConfig: { antialias: true, powerPreference: 'high-performance' } })
         (document.getElementById('globeViz'))
         .globeImageUrl('//unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
         .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
-        .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
-        .atmosphereColor('#38bdf8')
-        .atmosphereAltitude(0.25)
+        .backgroundColor('#020408')
+        .atmosphereColor('#10b981')
+        .atmosphereAltitude(0.28)
         .htmlElementsData([])
         .htmlElement(d => {
           const el = document.createElement('div');
-          el.innerHTML = `<div style="cursor:pointer; background: #38bdf8; width: ${Math.max(8, d.votes * 2)}px; height: ${Math.max(8, d.votes * 2)}px; border-radius: 50%; box-shadow: 0 0 12px #38bdf8; border: 2px solid white;"></div>`;
+          const size = Math.max(10, d.votes * 2.2);
+          el.innerHTML = `<div style="cursor:pointer; background: radial-gradient(circle, #10b981, #38bdf8); width: ${size}px; height: ${size}px; border-radius: 50%; box-shadow: 0 0 14px #10b981, 0 0 24px #38bdf8; border: 2px solid #fff;"></div>`;
           el.onclick = () => openPreview(d);
           return el;
         });
 
+      // Sharper terrain & zoom limits
+      globe.globeMaterial().bumpScale = 12;
       globe.controls().autoRotate = true;
-      globe.controls().autoRotateSpeed = 0.4;
+      globe.controls().autoRotateSpeed = 0.45;
+      globe.controls().minDistance = 130;
+      globe.controls().maxDistance = 600;
+
+      // Add 3D colorful galaxy stars
+      addColorfulGalaxy(globe.scene());
     }
 
     async function loadGlobeLinks() {
@@ -143,7 +236,6 @@
       const title = document.getElementById('title').value;
       const url = document.getElementById('url').value;
       
-      // If user is logged in, check their 10-link limit
       if (currentUser) {
         const { count } = await db
           .from('links')
@@ -155,7 +247,6 @@
           return;
         }
       } else {
-        // Guest mode: check if they already posted one using local storage
         if (localStorage.getItem('guest_posted')) {
           alert('Guests can make 1 free post! Please Sign In/Up in the top left to post more links and build your profile.');
           return;
@@ -170,50 +261,4 @@
         url, 
         lat, 
         lng, 
-        votes: 1, 
-        user_id: currentUser ? currentUser.id : null 
-      }]);
-
-      if (error) {
-        alert('Error posting link: ' + error.message);
-      } else {
-        if (!currentUser) {
-          localStorage.setItem('guest_posted', 'true');
-          alert('Guest post successful! Sign in anytime to unlock up to 10 posts.');
-        } else {
-          alert('Successfully pinned to the globe!');
-        }
-        e.target.reset();
-        loadGlobeLinks();
-      }
-    });
-
-    function openPreview(item) {
-      document.getElementById('modalTitle').innerText = item.title;
-      document.getElementById('modalLink').href = item.url;
-      
-      const content = document.getElementById('modalContent');
-      content.innerHTML = '';
-
-      if (item.url.includes('youtube.com') || item.url.includes('youtu.be')) {
-        let videoId = item.url.includes('youtu.be') ? item.url.split('/').pop() : new URL(item.url).searchParams.get('v');
-        content.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>`;
-      } else if (item.url.includes('spotify.com')) {
-        let embedUrl = item.url.replace('open.spotify.com', 'open.spotify.com/embed');
-        content.innerHTML = `<iframe src="${embedUrl}" height="152" allow="encrypted-media"></iframe>`;
-      } else {
-        content.innerHTML = `<p style="color:#94a3b8;">Direct preview not available for this website. Click below to view!</p>`;
-      }
-
-      document.getElementById('modal').style.display = 'block';
-    }
-
-    function closeModal() {
-      document.getElementById('modal').style.display = 'none';
-      document.getElementById('modalContent').innerHTML = '';
-    }
-
-    init();
-  </script>
-</body>
-</html>
+        votes
