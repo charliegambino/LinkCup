@@ -3,84 +3,201 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LinkCup — 24h Links</title>
+  <title>LinkCup — 3D Globe Links</title>
+  <!-- Supabase & Three.js / Globe.gl -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="//unpkg.com/three"></script>
+  <script src="//unpkg.com/globe.gl"></script>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 650px; margin: 40px auto; padding: 0 16px; background: #0f172a; color: #f8fafc; }
-    h1 { margin-bottom: 4px; }
-    .sub { color: #94a3b8; margin-bottom: 24px; font-size: 14px; }
-    form { display: flex; gap: 8px; margin-bottom: 28px; flex-wrap: wrap; }
-    input { flex: 1; min-width: 180px; padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: white; }
-    button { padding: 10px 16px; border-radius: 6px; border: none; background: #3b82f6; color: white; font-weight: 600; cursor: pointer; }
+    body { margin: 0; background: #000; color: #fff; font-family: system-ui, sans-serif; overflow: hidden; }
+    #globeViz { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
+    
+    /* UI Overlay */
+    .ui-overlay { position: absolute; top: 20px; left: 20px; z-index: 10; max-width: 350px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); }
+    h1 { margin: 0 0 4px 0; font-size: 24px; color: #38bdf8; }
+    .sub { color: #94a3b8; font-size: 13px; margin-bottom: 16px; }
+    
+    form { display: flex; flex-direction: column; gap: 8px; }
+    input { padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: white; font-size: 14px; }
+    button { padding: 10px; border-radius: 6px; border: none; background: #3b82f6; color: white; font-weight: 600; cursor: pointer; }
     button:hover { background: #2563eb; }
-    .card { display: flex; align-items: center; gap: 14px; background: #1e293b; padding: 14px; border-radius: 8px; margin-bottom: 10px; }
-    .votes { display: flex; flex-direction: column; align-items: center; min-width: 40px; }
-    .votes button { background: transparent; color: #94a3b8; padding: 2px 6px; font-size: 16px; }
-    .votes button:hover { color: #38bdf8; }
-    .link-info a { color: #38bdf8; text-decoration: none; font-weight: 600; font-size: 16px; }
-    .link-info a:hover { text-decoration: underline; }
-    .meta { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+    /* Auth status bar */
+    .auth-bar { margin-top: 12px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; color: #94a3b8; }
+    .auth-bar button { padding: 4px 8px; font-size: 11px; background: #475569; }
+
+    /* Floating Modal for Media Previews */
+    #modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 600px; background: #0f172a; border: 1px solid #334155; border-radius: 12px; z-index: 100; padding: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); }
+    #modal iframe { width: 100%; height: 315px; border-radius: 8px; border: none; margin-top: 12px; }
+    .close-btn { float: right; background: transparent; color: #94a3b8; font-size: 18px; cursor: pointer; border: none; padding: 0; }
   </style>
 </head>
 <body>
-  <h1>LinkCup</h1>
-  <div class="sub">Links disappear after 24 hours.</div>
 
-  <form id="linkForm">
-    <input type="text" id="title" placeholder="Link title" required />
-    <input type="url" id="url" placeholder="https://example.com" required />
-    <button type="submit">Post</button>
-  </form>
+  <div id="globeViz"></div>
 
-  <div id="feed">Loading links...</div>
+  <div class="ui-overlay">
+    <h1>LinkCup</h1>
+    <div class="sub">An artistic 3D globe of internet shares. Max 10 links per account.</div>
+
+    <form id="linkForm">
+      <input type="text" id="title" placeholder="Link title" required />
+      <input type="url" id="url" placeholder="https://youtube.com/... or any URL" required />
+      <button type="submit">Post to Globe</button>
+    </form>
+
+    <div class="auth-bar" id="authSection">
+      <span id="userStatus">Not signed in</span>
+      <button id="authBtn" onclick="toggleAuth()">Sign In / Up</button>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div id="modal">
+    <button class="close-btn" onclick="closeModal()">✕</button>
+    <h2 id="modalTitle" style="margin:0 0 8px 0; font-size:18px;"></h2>
+    <div id="modalContent"></div>
+    <a id="modalLink" href="#" target="_blank" style="display:inline-block; margin-top:12px; color:#38bdf8; text-decoration:none;">Open Full Link ↗</a>
+  </div>
 
   <script>
     const SUPABASE_URL = 'https://nhylzscggsmtuiqvmijs.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_Nwlnp52KKsSR7hzkWLHEoQ_qrjKPfo8';
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    async function loadLinks() {
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data, error } = await db
-        .from('links')
-        .select('*')
-        .gte('created_at', yesterday)
-        .order('votes', { ascending: false });
+    let globe;
+    let currentUser = null;
 
-      const feed = document.getElementById('feed');
-      if (error) { feed.innerText = 'Error loading links.'; return; }
-      if (!data.length) { feed.innerText = 'No links in the last 24 hours. Post one!'; return; }
+    async function init() {
+      const { data: { session } } = await db.auth.getSession();
+      updateAuthUI(session);
 
-      feed.innerHTML = data.map(item => `
-        <div class="card">
-          <div class="votes">
-            <button onclick="vote(${item.id}, ${item.votes + 1})">▲</button>
-            <span>${item.votes}</span>
-            <button onclick="vote(${item.id}, ${item.votes - 1})">▼</button>
-          </div>
-          <div class="link-info">
-            <a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.title}</a>
-            <div class="meta">${new URL(item.url).hostname}</div>
-          </div>
-        </div>
-      `).join('');
+      db.auth.onAuthStateChange((event, session) => {
+        updateAuthUI(session);
+      });
+
+      setupGlobe();
+      loadGlobeLinks();
     }
 
-    async function vote(id, newVotes) {
-      await db.from('links').update({ votes: newVotes }).eq('id', id);
-      loadLinks();
+    function updateAuthUI(session) {
+      currentUser = session?.user || null;
+      const status = document.getElementById('userStatus');
+      const btn = document.getElementById('authBtn');
+      if (currentUser) {
+        status.innerText = currentUser.email.split('@')[0];
+        btn.innerText = 'Sign Out';
+      } else {
+        status.innerText = 'Guest Mode';
+        btn.innerText = 'Sign In';
+      }
+    }
+
+    async function toggleAuth() {
+      if (currentUser) {
+        await db.auth.signOut();
+      } else {
+        const email = prompt('Enter email for login/signup:');
+        if (!email) return;
+        const password = prompt('Enter password:');
+        if (!password) return;
+        
+        const { error } = await db.auth.signInWithPassword({ email, password });
+        if (error) {
+          const { error: signUpError } = await db.auth.signUp({ email, password });
+          if (signUpError) alert(signUpError.message);
+          else alert('Account created! You are now signed in.');
+        }
+      }
+    }
+
+    async function setupGlobe() {
+      globe = Globe()
+        (document.getElementById('globeViz'))
+        .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
+        .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
+        .htmlElementsData([])
+        .htmlElement(d => {
+          const el = document.createElement('div');
+          el.innerHTML = `<div style="cursor:pointer; background: #38bdf8; width: ${Math.max(8, d.votes * 2)}px; height: ${Math.max(8, d.votes * 2)}px; border-radius: 50%; box-shadow: 0 0 12px #38bdf8; border: 2px solid white;"></div>`;
+          el.onclick = () => openPreview(d);
+          return el;
+        });
+    }
+
+    async function loadGlobeLinks() {
+      const { data, error } = await db.from('links').select('*');
+      if (error || !data) return;
+      globe.htmlElementsData(data);
     }
 
     document.getElementById('linkForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (!currentUser) {
+        alert('Please sign in to post links!');
+        return;
+      }
+
+      const { count } = await db
+        .from('links')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', currentUser.id);
+
+      if (count >= 10) {
+        alert('You have reached the limit of 10 posted links per account!');
+        return;
+      }
+
       const title = document.getElementById('title').value;
       const url = document.getElementById('url').value;
-      await db.from('links').insert([{ title, url, votes: 1 }]);
-      e.target.reset();
-      loadLinks();
+      
+      const lat = (Math.random() * 140) - 70;
+      const lng = (Math.random() * 360) - 180;
+
+      const { error } = await db.from('links').insert([{ 
+        title, 
+        url, 
+        lat, 
+        lng, 
+        votes: 1, 
+        user_id: currentUser.id 
+      }]);
+
+      if (error) {
+        alert('Error posting link: ' + error.message);
+      } else {
+        e.target.reset();
+        loadGlobeLinks();
+        alert('Successfully pinned to the globe!');
+      }
     });
 
-    loadLinks();
+    function openPreview(item) {
+      document.getElementById('modalTitle').innerText = item.title;
+      document.getElementById('modalLink').href = item.url;
+      
+      const content = document.getElementById('modalContent');
+      content.innerHTML = '';
+
+      if (item.url.includes('youtube.com') || item.url.includes('youtu.be')) {
+        let videoId = item.url.includes('youtu.be') ? item.url.split('/').pop() : new URL(item.url).searchParams.get('v');
+        content.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>`;
+      } else if (item.url.includes('spotify.com')) {
+        let embedUrl = item.url.replace('open.spotify.com', 'open.spotify.com/embed');
+        content.innerHTML = `<iframe src="${embedUrl}" height="152" allow="encrypted-media"></iframe>`;
+      } else {
+        content.innerHTML = `<p style="color:#94a3b8;">Direct preview not available for this website. Click below to view!</p>`;
+      }
+
+      document.getElementById('modal').style.display = 'block';
+    }
+
+    function closeModal() {
+      document.getElementById('modal').style.display = 'none';
+      document.getElementById('modalContent').innerHTML = '';
+    }
+
+    init();
   </script>
 </body>
 </html>
