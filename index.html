@@ -36,6 +36,7 @@
 
     .hidden { display: none !important; }
 
+    /* ---------- SMALL TOP BAR (doesn't cover the map) ---------- */
     #topbar {
       position: fixed;
       top: 12px;
@@ -180,6 +181,7 @@
       #soundHint { top: auto; bottom: 70px; right: 50%; transform: translateX(50%); }
     }
 
+    /* ---------- BILLBOARDS (these live in 3D space) ---------- */
     .bb {
       --c: #22d3ee;
       --pc: #22d3ee;
@@ -285,6 +287,104 @@
     .pv .pname { font-size: 26px; font-weight: 900; }
     .pv .ptitle { font-size: 18px; color: #cbd5e1; max-width: 90%; }
     .pv .tip { font-size: 14px; color: #cbd5e1; background: rgba(0,0,0,.5); padding: 5px 12px; border-radius: 999px; }
+
+    /* ---------- GLOWING RETICLE (where your post lands) ---------- */
+    #reticle {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      width: 0;
+      height: 0;
+      z-index: 5;
+      pointer-events: none;
+      transition: opacity .3s;
+    }
+    #reticle.dim { opacity: .45; }
+    #reticle.dim .label { display: none; }
+    #reticle .fx { position: absolute; left: 0; top: 0; animation: retHue 5s linear infinite; }
+    #reticle .aura {
+      position: absolute;
+      left: -40px; top: -40px;
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: conic-gradient(#38bdf8, #a855f7, #f472b6, #facc15, #34d399, #38bdf8);
+      filter: blur(12px);
+      opacity: .6;
+      animation: retSpin 3s linear infinite;
+    }
+    #reticle .ring {
+      position: absolute;
+      left: -24px; top: -24px;
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, .85);
+      box-shadow: 0 0 12px #38bdf8, inset 0 0 12px #38bdf8;
+      animation: retRing 2s ease-out infinite;
+    }
+    #reticle .flares { position: absolute; left: 0; top: 0; animation: retSpin 9s linear infinite; }
+    #reticle .flares i {
+      position: absolute;
+      left: -75px; top: -1px;
+      width: 150px; height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .95), transparent);
+    }
+    #reticle .flares i:last-child { transform: rotate(90deg); }
+    #reticle .core {
+      position: absolute;
+      left: -7px; top: -7px;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 10px 4px #38bdf8, 0 0 28px 10px #a855f7, 0 0 60px 20px rgba(56, 189, 248, .45);
+      animation: retPulse 1.4s ease-in-out infinite;
+    }
+    #reticle .label {
+      position: absolute;
+      top: 46px;
+      left: 0;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      font-size: 12px;
+      padding: 4px 10px;
+      background: rgba(4, 8, 14, .78);
+      border: 1px solid rgba(56, 189, 248, .5);
+      border-radius: 999px;
+      color: #e2e8f0;
+    }
+    @keyframes retHue { to { filter: hue-rotate(360deg); } }
+    @keyframes retSpin { to { transform: rotate(360deg); } }
+    @keyframes retPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+    @keyframes retRing { 0% { transform: scale(.6); opacity: 1; } 100% { transform: scale(1.7); opacity: 0; } }
+
+    /* ---------- IN-SITE PLAYER ---------- */
+    #player {
+      --c: #38bdf8;
+      --pc: #38bdf8;
+      position: fixed;
+      right: 12px;
+      bottom: 12px;
+      z-index: 25;
+      width: min(420px, calc(100vw - 24px));
+      padding: 10px;
+      background: rgba(4, 8, 14, .93);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 2px solid var(--c);
+      border-radius: 14px;
+      box-shadow: 0 0 24px var(--c);
+    }
+    #player.tall { width: min(300px, calc(100vw - 24px)); }
+    #playerHead { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    #playerHead .bb-badge { font-size: 11px; padding: 3px 8px; }
+    #playerTitle { flex: 1; font-size: 14px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #playerClose { background: transparent; border: none; color: #94a3b8; font-size: 18px; padding: 0 4px; }
+    #playerMedia { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #000; }
+    #player.tall #playerMedia { aspect-ratio: 9 / 16; max-height: 60vh; }
+    #player.audio #playerMedia { aspect-ratio: auto; height: 160px; }
+    #playerMedia iframe { width: 100%; height: 100%; border: 0; display: block; }
+    #playerNote { padding: 18px; font-size: 13px; color: #cbd5e1; text-align: center; line-height: 1.5; }
+    #playerFoot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 12px; color: #94a3b8; }
+    #playerOpen { color: var(--c); font-weight: 800; text-decoration: none; }
   </style>
 </head>
 
@@ -292,6 +392,29 @@
 
 <div id="webgl"></div>
 <div id="css3d"></div>
+
+<div id="reticle" class="dim">
+  <div class="fx">
+    <div class="aura"></div>
+    <div class="ring"></div>
+    <div class="flares"><i></i><i></i></div>
+    <div class="core"></div>
+  </div>
+  <div class="label" id="reticleLabel"></div>
+</div>
+
+<div id="player" class="hidden">
+  <div id="playerHead">
+    <span id="playerBadge" class="bb-badge"></span>
+    <span id="playerTitle"></span>
+    <button id="playerClose" title="Close">✕</button>
+  </div>
+  <div id="playerMedia"></div>
+  <div id="playerFoot">
+    <span id="playerHint"></span>
+    <a id="playerOpen" href="#" target="_blank" rel="noopener noreferrer">Open ↗</a>
+  </div>
+</div>
 
 <header id="topbar">
   <div class="brand">OnDaMap</div>
@@ -307,6 +430,7 @@
     <button type="submit" class="primary" id="postBtn">Launch billboard 🚀</button>
   </form>
   <div id="urlHint" class="hint"></div>
+  <div class="hint">🎯 Drag the globe to aim the glowing dot in the middle of the screen. That's where your billboard lands.</div>
   <div id="quota" class="hint"></div>
   <details>
     <summary>Supported sites</summary>
@@ -352,12 +476,12 @@ const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 const GUEST_LIMIT = 1;
 const USER_LIMIT = 100;
 
-const R = 100;
-const MIN_DIST = 170;
+const R = 100;              // globe radius
+const MIN_DIST = 170;       // closest zoom (further than before = no blurry earth)
 const MAX_DIST = 800;
-const BB_SCALE = 0.075;
-const LIVE_RANGE = 200;
-const MAX_LIVE = 3;
+const BB_SCALE = 0.075;     // billboard size in 3D (560px wide -> 42 units, very big)
+const LIVE_RANGE = 200;     // how close you must be for a billboard to come alive
+const MAX_LIVE = 3;         // how many nearby billboards show live embeds at once
 
 const $ = id => document.getElementById(id);
 
@@ -428,6 +552,7 @@ function getPlatform(raw) {
   return null;
 }
 
+// Turns a normal link into an embeddable player URL (null = show a card instead)
 function getEmbed(p, u, autoplay) {
   const a = autoplay ? 1 : 0;
   const path = u.pathname;
@@ -525,7 +650,7 @@ function getEmbed(p, u, autoplay) {
       m = path.match(/\/(track|release)\/[^/]+\/(\d+)/);
       return m ? { src: `https://embed.beatport.com/?id=${m[2]}&type=${m[1]}` } : null;
     default:
-      return null;
+      return null; // site doesn't allow embedding from a link -> glowing card with Open button
   }
 }
 
@@ -571,6 +696,7 @@ controls.addEventListener('start', () => {
   fly = null;
 });
 
+// Light follows the camera so the side you're looking at is always lit
 const sun = new THREE.DirectionalLight(0xfff5e6, 2.4);
 sun.position.set(160, 120, 60);
 camera.add(sun);
@@ -626,6 +752,7 @@ loader.load(TEX + 'earth-clouds.png', t => {
   scene.add(clouds);
 });
 
+// Atmosphere glow
 const atmosphere = new THREE.Mesh(
   new THREE.SphereGeometry(R * 1.13, 64, 64),
   new THREE.ShaderMaterial({
@@ -660,21 +787,6 @@ const galaxies = [];
 let shootingStar, shootingLine;
 let shootingActive = false, shootingTimer = 3, shootingDuration = 0;
 const shootingVelocity = new THREE.Vector3();
-
-const flareTex = (() => {
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const x = c.getContext('2d');
-  const g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
-  g.addColorStop(0, 'rgba(255,255,255,1)');
-  g.addColorStop(0.25, 'rgba(255,255,255,0.6)');
-  g.addColorStop(1, 'rgba(255,255,255,0)');
-  x.fillStyle = g;
-  x.fillRect(0, 0, 128, 128);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-})();
 
 function createCosmicBackground() {
   const palette = ['#ffffff', '#b9dcff', '#a78bfa', '#f0abfc', '#67e8f9', '#fde047']
@@ -768,6 +880,22 @@ function launchShootingStar() {
   shootingActive = true;
 }
 
+// Soft glow texture (used for star twinkles and billboard beam tops)
+const flareTex = (() => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.25, 'rgba(255,255,255,0.6)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g;
+  x.fillRect(0, 0, 128, 128);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+})();
+
 createCosmicBackground();
 
 // ============================================
@@ -795,6 +923,7 @@ function catMats(color) {
   return matCache[color];
 }
 
+// More likes = taller beam (grows fast at first, then slower, capped)
 function poleHeight(votes) {
   return Math.min(150, 18 + 14 * Math.log2(1 + Math.max(0, votes || 0)));
 }
@@ -884,7 +1013,7 @@ class Billboard {
     this.media.className = 'bb-media';
     this.media.addEventListener('click', () => {
       if (this.state === 'preview') {
-        forced = this;
+        openPlayer(this);
         flyTo(this);
       }
     });
@@ -933,7 +1062,7 @@ class Billboard {
       play.textContent = '▶';
       const tip = document.createElement('div');
       tip.className = 'tip';
-      tip.textContent = 'Fly closer to play';
+      tip.textContent = this === pinned ? '▶ Playing in your player' : 'Tap to play here';
       pv.append(img, play, tip);
     } else {
       const icon = document.createElement('div');
@@ -947,7 +1076,8 @@ class Billboard {
       t.textContent = this.row.title || '';
       const tip = document.createElement('div');
       tip.className = 'tip';
-      tip.textContent = this.canEmbed ? 'Fly closer to play' : `Tap Open ↗ to view on ${this.p.name}`;
+      tip.textContent = !this.canEmbed ? `Tap Open ↗ to view on ${this.p.name}`
+        : this === pinned ? '▶ Playing in your player' : 'Tap to play here';
       pv.append(icon, name, t, tip);
     }
     return pv;
@@ -992,7 +1122,7 @@ class Billboard {
       saveLiked();
       this.likeBtn.classList.remove('liked');
       this.setVotes(before);
-      toast('Likes need the one-time Supabase setup');
+      toast('Likes need the one-time setup.sql in Supabase');
       return;
     }
     if (typeof data === 'number') this.setVotes(data);
@@ -1030,31 +1160,37 @@ class Billboard {
 function addBillboard(row) {
   if (!row || row.id == null || billboards.has(String(row.id))) return billboards.get(String(row?.id)) || null;
   const info = getPlatform(row.url || '');
-  if (!info) return null;
+  if (!info) return null; // not an allowed site -> not shown
   const b = new Billboard(row, info);
   billboards.set(b.id, b);
   return b;
 }
 
-function pickSpot() {
-  let best = null, bestScore = -1;
-  for (let i = 0; i < 24; i++) {
-    const lat = Math.random() * 140 - 70;
-    const lng = Math.random() * 360 - 180;
-    const v = latLngToVec(lat, lng);
-    let minD = Infinity;
-    for (const b of billboards.values()) minD = Math.min(minD, v.distanceTo(b.normal));
-    if (minD > bestScore) { bestScore = minD; best = { lat, lng }; }
-  }
-  return best;
+// The spot on Earth right under the glowing dot in the middle of the screen
+function vecToLatLng(v) {
+  const n = v.clone().normalize();
+  const lat = 90 - Math.acos(THREE.MathUtils.clamp(n.y, -1, 1)) * 180 / Math.PI;
+  let lng = Math.atan2(n.z, -n.x) * 180 / Math.PI - 180;
+  if (lng < -180) lng += 360;
+  return { lat, lng };
 }
 
+function reticleSpot() {
+  return vecToLatLng(camera.position);
+}
+
+function fmtSpot({ lat, lng }) {
+  return `${Math.abs(lat).toFixed(1)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lng).toFixed(1)}°${lng >= 0 ? 'E' : 'W'}`;
+}
+
+const postPanelOpen = () => !$('postPanel').classList.contains('hidden');
+
 // ============================================
-// 7. PROXIMITY AUDIO
+// 7. IN-SITE PLAYER + PROXIMITY AUDIO
 // ============================================
 
-let forced = null;
-let currentPlayer = null;
+let pinned = null;          // billboard playing in the bottom player
+let currentPlayer = null;   // billboard auto-playing because you're near it
 let soundOn = localStorage.getItem('odm_sound') !== 'off';
 let activated = false;
 
@@ -1063,23 +1199,22 @@ function updateLive() {
     .filter(b => b.css.visible && b.dist < LIVE_RANGE)
     .sort((a, b) => a.dist - b.dist);
 
+  // While the bottom player is open, nothing else auto-plays (no double audio)
   let player = null;
-  if (forced && forced.css.visible && forced.dist < LIVE_RANGE * 1.4) {
-    player = forced;
-  } else {
-    forced = null;
-    player = cands[0] || null;
-    if (currentPlayer && player !== currentPlayer && cands.includes(currentPlayer) &&
+  if (!pinned) {
+    const near = cands.filter(b => b.canEmbed);
+    player = near[0] || null;
+    if (currentPlayer && player !== currentPlayer && near.includes(currentPlayer) &&
         currentPlayer.dist < player.dist * 1.15) {
       player = currentPlayer;
     }
   }
 
-  const live = new Set(cands.slice(0, MAX_LIVE));
+  const live = new Set(cands.filter(b => b !== pinned).slice(0, MAX_LIVE));
   if (player) live.add(player);
 
   for (const b of billboards.values()) {
-    b.setState(b === player ? 'playing' : live.has(b) ? 'live' : 'preview');
+    b.setState(b === pinned ? 'preview' : b === player ? 'playing' : live.has(b) ? 'live' : 'preview');
   }
   currentPlayer = player;
 }
@@ -1088,6 +1223,55 @@ function refreshPlayer() {
   if (currentPlayer) { currentPlayer.state = null; }
   updateLive();
 }
+
+function openPlayer(b) {
+  const prev = pinned;
+  pinned = b;
+  if (prev) prev.state = null;
+  b.state = null;
+  if (currentPlayer) currentPlayer.state = null;
+
+  const pl = $('player');
+  pl.style.setProperty('--c', b.color);
+  pl.style.setProperty('--pc', b.p.color);
+  pl.classList.remove('hidden');
+  pl.classList.toggle('tall', b.tall);
+  pl.classList.toggle('audio', b.canEmbed && !b.tall && b.p.cat === 'music' && b.p.id !== 'ytmusic');
+  $('playerBadge').textContent = `${b.p.icon} ${b.p.name}`;
+  $('playerTitle').textContent = b.row.title || '';
+  $('playerOpen').href = b.u.href;
+
+  const media = $('playerMedia');
+  media.textContent = '';
+  const emb = getEmbed(b.p, b.u, true);
+  if (emb) {
+    const f = document.createElement('iframe');
+    f.src = emb.src;
+    f.allow = 'autoplay; encrypted-media; picture-in-picture; clipboard-write; fullscreen';
+    f.allowFullscreen = true;
+    f.referrerPolicy = 'strict-origin-when-cross-origin';
+    media.appendChild(f);
+    $('playerHint').textContent = '▶ Playing right here on OnDaMap';
+  } else {
+    const note = document.createElement('div');
+    note.id = 'playerNote';
+    note.textContent = `${b.p.name} doesn't let its content play inside other websites, so this one only opens on ${b.p.name}.`;
+    media.appendChild(note);
+    $('playerHint').textContent = '';
+  }
+  updateLive();
+}
+
+function closePlayer() {
+  const prev = pinned;
+  pinned = null;
+  if (prev) prev.state = null;
+  $('player').classList.add('hidden');
+  $('playerMedia').textContent = '';
+  updateLive();
+}
+
+$('playerClose').addEventListener('click', closePlayer);
 
 function onActivate() {
   if (activated) return;
@@ -1146,6 +1330,7 @@ function stepFly(dt) {
 // ============================================
 
 let lastTime = 0;
+let frame = 0;
 
 function animate(ts) {
   requestAnimationFrame(animate);
@@ -1158,11 +1343,19 @@ function animate(ts) {
   } else {
     const d = camera.position.length();
     controls.rotateSpeed = 0.15 + 0.85 * THREE.MathUtils.clamp((d - MIN_DIST) / (MAX_DIST - MIN_DIST), 0, 1);
-    if (!controls.autoRotate && !currentPlayer && performance.now() - lastInteract > 25000) {
+    const busy = currentPlayer || pinned || postPanelOpen();
+    if (!controls.autoRotate && !busy && performance.now() - lastInteract > 25000) {
       controls.autoRotate = true;
     }
-    if (currentPlayer) controls.autoRotate = false;
+    if (busy) controls.autoRotate = false;
     controls.update();
+  }
+
+  // reticle: bright while posting, faint otherwise
+  const posting = postPanelOpen();
+  $('reticle').classList.toggle('dim', !posting);
+  if (posting && frame++ % 6 === 0) {
+    $('reticleLabel').textContent = '📍 Your billboard lands here · ' + fmtSpot(reticleSpot());
   }
 
   camera.updateMatrixWorld();
@@ -1172,6 +1365,7 @@ function animate(ts) {
 
   for (const b of billboards.values()) b.update(dt);
 
+  // beam shimmer
   const shimmer = 0.22 + 0.1 * Math.sin(time * 3);
   for (const k in matCache) matCache[k].glow.opacity = shimmer;
 
@@ -1213,7 +1407,7 @@ addEventListener('resize', () => {
 });
 
 // ============================================
-// 10. UI
+// 10. UI: PANELS, TOAST
 // ============================================
 
 let toastTimer;
@@ -1233,7 +1427,15 @@ function openPanel(id) {
   if (!wasOpen) target.classList.remove('hidden');
 }
 
-$('postToggle').addEventListener('click', () => { openPanel('postPanel'); refreshQuota(); });
+$('postToggle').addEventListener('click', () => {
+  openPanel('postPanel');
+  refreshQuota();
+  if (postPanelOpen()) {
+    controls.autoRotate = false;
+    $('reticleLabel').textContent = '📍 Your billboard lands here · ' + fmtSpot(reticleSpot());
+    toast('Drag the globe to aim the glowing dot 🎯');
+  }
+});
 $('accountBtn').addEventListener('click', () => openPanel('authPanel'));
 addEventListener('keydown', e => {
   if (e.key === 'Escape') {
@@ -1350,7 +1552,7 @@ $('linkForm').addEventListener('submit', async e => {
       return;
     }
 
-    const { lat, lng } = pickSpot();
+    const { lat, lng } = reticleSpot();
     const { data, error } = await db.from('links')
       .insert([{ title, url: info.u.href, lat, lng, votes: 0, user_id: currentUser ? currentUser.id : null }])
       .select()
@@ -1364,7 +1566,7 @@ $('linkForm').addEventListener('submit', async e => {
     $('postPanel').classList.add('hidden');
 
     const b = addBillboard(data);
-    if (b) { forced = b; flyTo(b); }
+    if (b) flyTo(b);
     toast('Your billboard is up! 🚀');
     refreshQuota();
   } catch (err) {
@@ -1400,7 +1602,7 @@ function subscribeLive() {
         } else if (payload.eventType === 'DELETE') {
           const id = String(payload.old?.id);
           const b = billboards.get(id);
-          if (b) { if (b === currentPlayer) currentPlayer = null; if (b === forced) forced = null; b.dispose(); billboards.delete(id); }
+          if (b) { if (b === currentPlayer) currentPlayer = null; if (b === pinned) closePlayer(); b.dispose(); billboards.delete(id); }
         }
       })
       .subscribe();
