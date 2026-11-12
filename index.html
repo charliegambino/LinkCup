@@ -32,7 +32,8 @@
     #css3d div { pointer-events: none; }
     #css3d .bb-media,
     #css3d .bb-like,
-    #css3d .bb-open { pointer-events: auto; }
+    #css3d .bb-open,
+    #css3d .bb-del { pointer-events: auto; }
 
     .hidden { display: none !important; }
 
@@ -259,6 +260,18 @@
 
     .bb-status { flex: 1; font-size: 14px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+    .bb-del {
+      font-size: 15px;
+      font-weight: 800;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 2px solid rgba(248, 113, 113, .7);
+      background: rgba(248, 113, 113, .1);
+      color: #fca5a5;
+      white-space: nowrap;
+    }
+    .bb-del.confirm { background: #ef4444; color: #fff; border-color: #ef4444; }
+
     .bb-open { font-size: 16px; font-weight: 800; color: var(--c); text-decoration: none; white-space: nowrap; }
 
     .pv {
@@ -299,8 +312,8 @@
       pointer-events: none;
       transition: opacity .3s;
     }
-    #reticle.dim { opacity: .45; }
-    #reticle.dim .label { display: none; }
+    #reticle.dim .fx { opacity: .45; }
+    #reticle .label:empty { display: none; }
     #reticle .fx { position: absolute; left: 0; top: 0; animation: retHue 5s linear infinite; }
     #reticle .aura {
       position: absolute;
@@ -321,14 +334,14 @@
       box-shadow: 0 0 12px #38bdf8, inset 0 0 12px #38bdf8;
       animation: retRing 2s ease-out infinite;
     }
-    #reticle .flares { position: absolute; left: 0; top: 0; animation: retSpin 9s linear infinite; }
-    #reticle .flares i {
+    #reticle .cross { position: absolute; left: 0; top: 0; }
+    #reticle .cross i {
       position: absolute;
-      left: -75px; top: -1px;
-      width: 150px; height: 2px;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .95), transparent);
+      left: -32px; top: 0;
+      width: 64px; height: 1px;
+      background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, .45) 25%, transparent 42%, transparent 58%, rgba(255, 255, 255, .45) 75%, transparent 100%);
     }
-    #reticle .flares i:last-child { transform: rotate(90deg); }
+    #reticle .cross i:last-child { transform: rotate(90deg); }
     #reticle .core {
       position: absolute;
       left: -7px; top: -7px;
@@ -350,7 +363,10 @@
       border: 1px solid rgba(56, 189, 248, .5);
       border-radius: 999px;
       color: #e2e8f0;
+      text-align: center;
     }
+    #reticle .label b { font-size: 14px; color: #fff; text-shadow: 0 0 8px #38bdf8; }
+    #reticle .label small { display: block; color: #94a3b8; font-size: 11px; margin-top: 1px; }
     @keyframes retHue { to { filter: hue-rotate(360deg); } }
     @keyframes retSpin { to { transform: rotate(360deg); } }
     @keyframes retPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.35); } }
@@ -397,7 +413,7 @@
   <div class="fx">
     <div class="aura"></div>
     <div class="ring"></div>
-    <div class="flares"><i></i><i></i></div>
+    <div class="cross"><i></i><i></i></div>
     <div class="core"></div>
   </div>
   <div class="label" id="reticleLabel"></div>
@@ -464,6 +480,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { feature } from 'https://cdn.jsdelivr.net/npm/topojson-client@3/+esm';
+import { geoContains, geoBounds } from 'https://cdn.jsdelivr.net/npm/d3-geo@3/+esm';
 
 // ============================================
 // 1. CONFIG
@@ -568,6 +586,8 @@ function getEmbed(p, u, autoplay) {
       if (host === 'youtu.be') id = path.split('/')[1];
       else id = u.searchParams.get('v') ||
         ((path.match(/\/(?:shorts|embed|live|v)\/([\w-]{6,})/) || [])[1]);
+      const list = u.searchParams.get('list');
+      if (!id && list) return { src: `https://www.youtube.com/embed/videoseries?list=${list}&autoplay=${a}&playsinline=1` };
       if (!id) return null;
       return {
         src: `https://www.youtube.com/embed/${id}?autoplay=${a}&playsinline=1&rel=0`,
@@ -576,8 +596,8 @@ function getEmbed(p, u, autoplay) {
       };
     }
     case 'tiktok':
-      m = path.match(/\/video\/(\d+)/);
-      return m ? { src: `https://www.tiktok.com/player/v1/${m[1]}?autoplay=${a}&loop=1&music_info=1&description=1`, tall: true } : null;
+      m = path.match(/\/(?:video|photo|embed(?:\/v2)?|player\/v1)\/(\d+)/) || [0, u.searchParams.get('item_id')];
+      return m && m[1] ? { src: `https://www.tiktok.com/player/v1/${m[1]}?autoplay=${a}&loop=1&music_info=1&description=1`, tall: true } : null;
     case 'instagram':
       m = path.match(/\/(p|reels?|tv)\/([\w-]+)/);
       return m ? { src: `https://www.instagram.com/${m[1].startsWith('reel') ? 'reel' : m[1]}/${m[2]}/embed/`, tall: true } : null;
@@ -652,6 +672,26 @@ function getEmbed(p, u, autoplay) {
     default:
       return null; // site doesn't allow embedding from a link -> glowing card with Open button
   }
+}
+
+// Sites that never allow other websites to play their content
+const NO_EMBED = new Set(['vevo', 'snapchat', 'tumblr', 'amazonmusic', 'bandcamp', 'pandora', 'iheart', 'qobuz', 'anghami', 'boomplay', 'jiosaavn', 'audius']);
+
+// Explains WHY a link can't play, and what link to use instead
+function noEmbedMsg(p, u) {
+  const host = u.hostname.toLowerCase();
+  if (NO_EMBED.has(p.id)) return `${p.name} doesn't let other websites play its content, so this one opens on ${p.name}.`;
+  if (p.id === 'tiktok') {
+    if (/^(vm|vt)\./.test(host) || /^\/t\//.test(u.pathname)) {
+      return 'That\'s a TikTok short link. Open it in your browser, then copy the full link from the address bar (it looks like tiktok.com/@name/video/123…).';
+    }
+    return 'Use a link to one TikTok video (tiktok.com/@name/video/123…). Profile pages can\'t play here.';
+  }
+  if (p.id === 'youtube' || p.id === 'ytmusic') {
+    return 'Use a link to one video, Short or playlist (youtube.com/watch?v=…, youtu.be/…, youtube.com/shorts/…). Channel pages can\'t play here.';
+  }
+  if (p.id === 'spotify') return 'Use a link to a song, album, playlist or podcast (open.spotify.com/track/…). Short spotify.link links can\'t play here.';
+  return `This ${p.name} link can't play here. Try a link to a single video, post or song.`;
 }
 
 $('siteList').textContent = PLATFORMS.map(p => p.name).join(' · ');
@@ -1038,7 +1078,13 @@ class Billboard {
     open.target = '_blank';
     open.rel = 'noopener noreferrer';
     open.textContent = 'Open ↗';
-    foot.append(this.likeBtn, this.status, open);
+    this.delBtn = document.createElement('button');
+    this.delBtn.className = 'bb-del';
+    this.delBtn.textContent = '🗑';
+    this.delBtn.title = 'Delete billboard';
+    this.delBtn.addEventListener('click', e => { e.stopPropagation(); this.askDelete(); });
+    foot.append(this.likeBtn, this.status, this.delBtn, open);
+    this.updateDelBtn();
 
     el.append(head, this.media, foot);
     this.el = el;
@@ -1128,6 +1174,33 @@ class Billboard {
     if (typeof data === 'number') this.setVotes(data);
   }
 
+  // Guest posts: anyone can delete. Account posts: only the person who posted it.
+  canDelete() {
+    return this.row.user_id == null || (!!currentUser && this.row.user_id === currentUser.id);
+  }
+
+  updateDelBtn() {
+    this.delBtn.classList.toggle('hidden', !this.canDelete());
+  }
+
+  askDelete() {
+    if (!this.confirming) {
+      this.confirming = true;
+      this.delBtn.textContent = 'Tap again to delete';
+      this.delBtn.classList.add('confirm');
+      clearTimeout(this.confirmTimer);
+      this.confirmTimer = setTimeout(() => {
+        this.confirming = false;
+        this.delBtn.textContent = '🗑';
+        this.delBtn.classList.remove('confirm');
+      }, 3000);
+      return;
+    }
+    clearTimeout(this.confirmTimer);
+    this.confirming = false;
+    deleteBillboard(this);
+  }
+
   setVotes(v) {
     this.row.votes = v;
     this.likeCount.textContent = v;
@@ -1166,6 +1239,35 @@ function addBillboard(row) {
   return b;
 }
 
+function removeBillboard(id) {
+  const b = billboards.get(String(id));
+  if (!b) return;
+  if (b === currentPlayer) currentPlayer = null;
+  if (b === pinned) closePlayer();
+  b.dispose();
+  billboards.delete(String(id));
+}
+
+async function deleteBillboard(b) {
+  b.delBtn.textContent = 'Deleting…';
+  const { data, error } = await db.rpc('delete_link', { p_id: b.id });
+  if (error) {
+    console.error(error);
+    b.delBtn.textContent = '🗑';
+    b.delBtn.classList.remove('confirm');
+    toast('Deleting needs the new Supabase setup code (run it once).');
+    return;
+  }
+  if (data !== true) {
+    b.delBtn.textContent = '🗑';
+    b.delBtn.classList.remove('confirm');
+    toast('Only the person who posted this can delete it.');
+    return;
+  }
+  removeBillboard(b.id);
+  toast('Billboard deleted 🗑');
+}
+
 // The spot on Earth right under the glowing dot in the middle of the screen
 function vecToLatLng(v) {
   const n = v.clone().normalize();
@@ -1181,6 +1283,122 @@ function reticleSpot() {
 
 function fmtSpot({ lat, lng }) {
   return `${Math.abs(lat).toFixed(1)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lng).toFixed(1)}°${lng >= 0 ? 'E' : 'W'}`;
+}
+
+// ============================================
+// COUNTRY UNDER THE RETICLE
+// Borders: Natural Earth (world-atlas). Names: current official short names
+// by ISO 3166-1 code (incl. Türkiye, Czechia, Eswatini, North Macedonia,
+// and Naoero, Nauru's name since June 2026).
+// ============================================
+
+const COUNTRY_NAMES = {
+  '004':'Afghanistan','008':'Albania','010':'Antarctica','012':'Algeria','016':'American Samoa','020':'Andorra',
+  '024':'Angola','028':'Antigua and Barbuda','031':'Azerbaijan','032':'Argentina','036':'Australia','040':'Austria',
+  '044':'Bahamas','048':'Bahrain','050':'Bangladesh','051':'Armenia','052':'Barbados','056':'Belgium','060':'Bermuda',
+  '064':'Bhutan','068':'Bolivia','070':'Bosnia and Herzegovina','072':'Botswana','074':'Bouvet Island','076':'Brazil',
+  '084':'Belize','086':'British Indian Ocean Territory','090':'Solomon Islands','092':'British Virgin Islands',
+  '096':'Brunei','100':'Bulgaria','104':'Myanmar','108':'Burundi','112':'Belarus','116':'Cambodia','120':'Cameroon',
+  '124':'Canada','132':'Cabo Verde','136':'Cayman Islands','140':'Central African Republic','144':'Sri Lanka',
+  '148':'Chad','152':'Chile','156':'China','158':'Taiwan','162':'Christmas Island','166':'Cocos (Keeling) Islands',
+  '170':'Colombia','174':'Comoros','175':'Mayotte','178':'Republic of the Congo','180':'Democratic Republic of the Congo',
+  '184':'Cook Islands','188':'Costa Rica','191':'Croatia','192':'Cuba','196':'Cyprus','203':'Czechia','204':'Benin',
+  '208':'Denmark','212':'Dominica','214':'Dominican Republic','218':'Ecuador','222':'El Salvador',
+  '226':'Equatorial Guinea','231':'Ethiopia','232':'Eritrea','233':'Estonia','234':'Faroe Islands',
+  '238':'Falkland Islands','239':'South Georgia and the South Sandwich Islands','242':'Fiji','246':'Finland',
+  '248':'Åland Islands','250':'France','254':'French Guiana','258':'French Polynesia',
+  '260':'French Southern and Antarctic Lands','262':'Djibouti','266':'Gabon','268':'Georgia','270':'Gambia',
+  '275':'Palestine','276':'Germany','288':'Ghana','292':'Gibraltar','296':'Kiribati','300':'Greece','304':'Greenland',
+  '308':'Grenada','312':'Guadeloupe','316':'Guam','320':'Guatemala','324':'Guinea','328':'Guyana','332':'Haiti',
+  '334':'Heard Island and McDonald Islands','336':'Vatican City','340':'Honduras','344':'Hong Kong','348':'Hungary',
+  '352':'Iceland','356':'India','360':'Indonesia','364':'Iran','368':'Iraq','372':'Ireland','376':'Israel','380':'Italy',
+  '384':'Côte d’Ivoire','388':'Jamaica','392':'Japan','398':'Kazakhstan','400':'Jordan','404':'Kenya',
+  '408':'North Korea','410':'South Korea','414':'Kuwait','417':'Kyrgyzstan','418':'Laos','422':'Lebanon',
+  '426':'Lesotho','428':'Latvia','430':'Liberia','434':'Libya','438':'Liechtenstein','440':'Lithuania',
+  '442':'Luxembourg','446':'Macao','450':'Madagascar','454':'Malawi','458':'Malaysia','462':'Maldives','466':'Mali',
+  '470':'Malta','474':'Martinique','478':'Mauritania','480':'Mauritius','484':'Mexico','492':'Monaco',
+  '496':'Mongolia','498':'Moldova','499':'Montenegro','500':'Montserrat','504':'Morocco','508':'Mozambique',
+  '512':'Oman','516':'Namibia','520':'Naoero','524':'Nepal','528':'Netherlands','531':'Curaçao','533':'Aruba',
+  '534':'Sint Maarten','540':'New Caledonia','548':'Vanuatu','554':'New Zealand','558':'Nicaragua','562':'Niger',
+  '566':'Nigeria','570':'Niue','574':'Norfolk Island','578':'Norway','580':'Northern Mariana Islands',
+  '581':'U.S. Minor Outlying Islands','583':'Micronesia','584':'Marshall Islands','585':'Palau','586':'Pakistan',
+  '591':'Panama','598':'Papua New Guinea','600':'Paraguay','604':'Peru','608':'Philippines','612':'Pitcairn Islands',
+  '616':'Poland','620':'Portugal','624':'Guinea-Bissau','626':'Timor-Leste','630':'Puerto Rico','634':'Qatar',
+  '638':'Réunion','642':'Romania','643':'Russia','646':'Rwanda','652':'Saint Barthélemy','654':'Saint Helena',
+  '659':'Saint Kitts and Nevis','660':'Anguilla','662':'Saint Lucia','663':'Saint Martin',
+  '666':'Saint Pierre and Miquelon','670':'Saint Vincent and the Grenadines','674':'San Marino',
+  '678':'São Tomé and Príncipe','682':'Saudi Arabia','686':'Senegal','688':'Serbia','690':'Seychelles',
+  '694':'Sierra Leone','702':'Singapore','703':'Slovakia','704':'Vietnam','705':'Slovenia','706':'Somalia',
+  '710':'South Africa','716':'Zimbabwe','724':'Spain','728':'South Sudan','729':'Sudan','732':'Western Sahara',
+  '740':'Suriname','744':'Svalbard and Jan Mayen','748':'Eswatini','752':'Sweden','756':'Switzerland','760':'Syria',
+  '762':'Tajikistan','764':'Thailand','768':'Togo','772':'Tokelau','776':'Tonga','780':'Trinidad and Tobago',
+  '784':'United Arab Emirates','788':'Tunisia','792':'Türkiye','795':'Turkmenistan','796':'Turks and Caicos Islands',
+  '798':'Tuvalu','800':'Uganda','804':'Ukraine','807':'North Macedonia','818':'Egypt','826':'United Kingdom',
+  '831':'Guernsey','832':'Jersey','833':'Isle of Man','834':'Tanzania','840':'United States',
+  '850':'U.S. Virgin Islands','854':'Burkina Faso','858':'Uruguay','860':'Uzbekistan','862':'Venezuela',
+  '876':'Wallis and Futuna','882':'Samoa','887':'Yemen','894':'Zambia'
+};
+
+// Places in the map data that have no ISO code
+const NAME_FIXES = {
+  'N. Cyprus': 'Northern Cyprus', 'Somaliland': 'Somaliland', 'Kosovo': 'Kosovo',
+  'Indian Ocean Ter.': 'Australian Indian Ocean Territories', 'Ashmore and Cartier Is.': 'Ashmore and Cartier Islands',
+  'Siachen Glacier': 'Siachen Glacier', 'Br. Indian Ocean Ter.': 'British Indian Ocean Territory'
+};
+
+let countries = [];  // { name, feature, bounds }
+
+async function loadCountries() {
+  try {
+    const res = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json');
+    const topo = await res.json();
+    const fc = feature(topo, topo.objects.countries);
+    countries = fc.features.map(f => ({
+      name: COUNTRY_NAMES[String(f.id).padStart(3, '0')] || NAME_FIXES[f.properties?.name] || f.properties?.name || '',
+      feature: f,
+      bounds: geoBounds(f)
+    })).filter(c => c.name);
+  } catch (err) {
+    console.warn('Country borders unavailable', err);
+  }
+}
+
+function inBounds(c, lng, lat) {
+  const [[w, s], [e, n]] = c.bounds;
+  if (lat < s || lat > n) return false;
+  return w <= e ? (lng >= w && lng <= e) : (lng >= w || lng <= e);
+}
+
+function countryAt({ lat, lng }) {
+  for (const c of countries) {
+    if (inBounds(c, lng, lat) && geoContains(c.feature, [lng, lat])) return c.name;
+  }
+  return null;
+}
+
+let aimCountry = null;
+let lastAim = null;
+
+function updateReticleLabel(force) {
+  const spot = reticleSpot();
+  if (force || !lastAim || Math.abs(spot.lat - lastAim.lat) > 0.02 || Math.abs(spot.lng - lastAim.lng) > 0.02) {
+    lastAim = spot;
+    aimCountry = countryAt(spot);
+  }
+  const label = $('reticleLabel');
+  label.textContent = '';
+  const name = aimCountry || (countries.length ? '🌊 Ocean' : '');
+  if (postPanelOpen()) {
+    const b = document.createElement('b');
+    b.textContent = '📍 ' + (aimCountry ? 'Lands in ' + aimCountry : name ? 'Lands in the ocean' : 'Your billboard lands here');
+    const sm = document.createElement('small');
+    sm.textContent = fmtSpot(spot);
+    label.append(b, sm);
+  } else if (aimCountry) {
+    const b = document.createElement('b');
+    b.textContent = aimCountry;
+    label.append(b);
+  }
 }
 
 const postPanelOpen = () => !$('postPanel').classList.contains('hidden');
@@ -1255,7 +1473,7 @@ function openPlayer(b) {
   } else {
     const note = document.createElement('div');
     note.id = 'playerNote';
-    note.textContent = `${b.p.name} doesn't let its content play inside other websites, so this one only opens on ${b.p.name}.`;
+    note.textContent = noEmbedMsg(b.p, b.u);
     media.appendChild(note);
     $('playerHint').textContent = '';
   }
@@ -1354,9 +1572,7 @@ function animate(ts) {
   // reticle: bright while posting, faint otherwise
   const posting = postPanelOpen();
   $('reticle').classList.toggle('dim', !posting);
-  if (posting && frame++ % 6 === 0) {
-    $('reticleLabel').textContent = '📍 Your billboard lands here · ' + fmtSpot(reticleSpot());
-  }
+  if (frame++ % 8 === 0) updateReticleLabel(false);
 
   camera.updateMatrixWorld();
   camUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
@@ -1432,7 +1648,7 @@ $('postToggle').addEventListener('click', () => {
   refreshQuota();
   if (postPanelOpen()) {
     controls.autoRotate = false;
-    $('reticleLabel').textContent = '📍 Your billboard lands here · ' + fmtSpot(reticleSpot());
+    updateReticleLabel(true);
     toast('Drag the globe to aim the glowing dot 🎯');
   }
 });
@@ -1455,10 +1671,16 @@ $('url').addEventListener('input', () => {
     return;
   }
   const emb = getEmbed(info.p, info.u, false);
-  hint.textContent = emb
-    ? `✓ ${info.p.name}: plays right on the globe`
-    : `✓ ${info.p.name}: shows as a glowing card with an Open button (this link can’t be embedded)`;
-  hint.className = 'hint ok';
+  if (emb) {
+    hint.textContent = `✓ ${info.p.name}: plays right on the globe`;
+    hint.className = 'hint ok';
+  } else if (NO_EMBED.has(info.p.id)) {
+    hint.textContent = `✓ ${info.p.name}: ${noEmbedMsg(info.p, info.u)}`;
+    hint.className = 'hint ok';
+  } else {
+    hint.textContent = '✗ ' + noEmbedMsg(info.p, info.u);
+    hint.className = 'hint bad';
+  }
 });
 
 // ============================================
@@ -1477,6 +1699,7 @@ function setUser(session) {
   $('authMsg').textContent = currentUser
     ? `You can post up to ${USER_LIMIT} billboards.`
     : `Guests get ${GUEST_LIMIT} billboard. Sign in to post up to ${USER_LIMIT}.`;
+  for (const b of billboards.values()) b.updateDelBtn();
   refreshQuota();
 }
 
@@ -1539,6 +1762,10 @@ $('linkForm').addEventListener('submit', async e => {
   const info = getPlatform($('url').value);
   if (!title) return;
   if (!info) { toast('Only links from the supported sites can be posted.'); return; }
+  if (!getEmbed(info.p, info.u, false) && !NO_EMBED.has(info.p.id)) {
+    toast(noEmbedMsg(info.p, info.u));
+    return;
+  }
 
   const btn = $('postBtn');
   btn.disabled = true;
@@ -1600,9 +1827,7 @@ function subscribeLive() {
           const b = billboards.get(String(payload.new.id));
           if (b) b.setVotes(payload.new.votes || 0);
         } else if (payload.eventType === 'DELETE') {
-          const id = String(payload.old?.id);
-          const b = billboards.get(id);
-          if (b) { if (b === currentPlayer) currentPlayer = null; if (b === pinned) closePlayer(); b.dispose(); billboards.delete(id); }
+          removeBillboard(payload.old?.id);
         }
       })
       .subscribe();
@@ -1615,6 +1840,7 @@ async function init() {
   const { data } = await db.auth.getSession();
   setUser(data?.session);
   db.auth.onAuthStateChange((_e, session) => setUser(session));
+  loadCountries().then(() => updateReticleLabel(true));
   await loadLinks();
   subscribeLive();
   setTimeout(() => toast('Drag to spin · zoom in close to a billboard to watch & hear it 🔊'), 800);
